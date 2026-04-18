@@ -4,7 +4,16 @@
 
 ![CodexMonitor](screenshot.png)
 
-CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local workspaces. It provides a sidebar to manage projects, a home screen for quick actions, and a conversation view backed by the Codex app-server protocol.
+CodexMonitor is a desktop app for running and monitoring Codex across one or more workspaces. It gives you a project sidebar, thread history, approvals, Git context, prompts, and workspace management in one place.
+
+## What This README Covers
+
+This README is organized for two different audiences:
+
+- **Use CodexMonitor**: install it, connect it to Codex, and start using it locally or in server/client mode.
+- **Develop CodexMonitor**: build from source, run validation, and navigate the codebase.
+
+If you just want to use the app, read through **Choose Your Setup** and stop after **Troubleshooting**.
 
 ## Features
 
@@ -15,11 +24,11 @@ CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local
 - Worktree and clone agents for isolated work; worktrees live under the app data directory (legacy `.codex-worktrees` supported).
 - Thread management: pin/rename/archive/copy, per-thread drafts, and stop/interrupt in-flight turns.
 - Optional remote backend (daemon) mode for running Codex on another machine.
-- Remote setup helpers for self-hosted connectivity (Tailscale detection/host bootstrap for TCP mode).
+- Remote setup helpers for self-hosted connectivity, including Tailscale-assisted TCP setup.
 
 ### Composer & Agent Controls
 
-- Compose with image attachments (picker, drag/drop, paste) and configurable follow-up behavior (`Queue` vs `Steer` while a run is active).
+- Compose with image attachments, drag/drop, paste, and configurable follow-up behavior (`Queue` vs `Steer` while a run is active).
 - Use `Shift+Cmd+Enter` (macOS) or `Shift+Ctrl+Enter` (Windows/Linux) to send the opposite follow-up action for a single message.
 - Autocomplete for skills (`$`), prompts (`/prompts:`), reviews (`/review`), and file paths (`@`).
 - Model picker, collaboration modes (when enabled), reasoning effort, access mode, and context usage ring.
@@ -41,20 +50,69 @@ CodexMonitor is a Tauri app for orchestrating multiple Codex agents across local
 ### UI & Experience
 
 - Resizable sidebar/right/plan/terminal/debug panels with persisted sizes.
-- Responsive layouts (desktop/tablet/phone) with tabbed navigation.
+- Responsive layouts for desktop, tablet, and phone.
 - Sidebar usage and credits meter for account rate limits plus a home usage snapshot.
 - Terminal dock with multiple tabs for background commands (experimental).
-- In-app updates with toast-driven download/install, debug panel copy/clear, sound notifications, plus platform-specific window effects (macOS overlay title bar + vibrancy) and a reduced transparency toggle.
+- In-app updates with toast-driven download/install, debug panel copy/clear, sound notifications, plus platform-specific window effects.
 
-## Requirements
+## Choose Your Setup
+
+There are two main ways to use CodexMonitor:
+
+### 1. Local
+
+Use this when CodexMonitor and your `codex` CLI run on the same machine.
+
+Typical example:
+- You install CodexMonitor on your laptop or desktop.
+- Your repos are on that same machine.
+- `codex`, `git`, and any related tooling are installed on that same machine.
+
+### 2. Server / Client
+
+Use this when one machine runs the Codex backend and one or more other machines connect to it remotely.
+
+Typical example:
+- A server machine runs CodexMonitor's daemon and has access to your repos and `codex` CLI.
+- A client machine runs the CodexMonitor app in `Remote (daemon)` mode.
+- Both machines are connected over Tailscale or another network path you manage.
+
+This is the right model if you want to keep the actual Codex work on a dedicated machine and use another laptop as a remote control surface.
+
+## User Prerequisites
+
+These are the things you need for normal usage. You do **not** need to read the development sections below unless you are building the app yourself.
+
+### Required
+
+- Codex CLI installed and available as `codex` in `PATH`, unless you set a custom Codex binary in settings.
+- Git installed and available in `PATH`.
+- A machine with access to the repos you want CodexMonitor to manage.
+
+### Optional
+
+- GitHub CLI (`gh`) for GitHub Issues and Pull Request features.
+- Tailscale if you want to use server/client mode over your tailnet.
+
+### If You Are Building from Source
+
+You also need:
 
 - Node.js + npm
 - Rust toolchain (stable)
-- CMake (required for native dependencies; dictation/Whisper uses it)
-- LLVM/Clang (required on Windows to build dictation dependencies via bindgen)
-- Codex CLI installed and available as `codex` in `PATH` (or configure a custom Codex binary in app/workspace settings)
-- Git CLI (used for worktree operations)
-- GitHub CLI (`gh`) for GitHub Issues/PR integrations (optional)
+- CMake
+- `pkg-config` on Linux
+- LLVM/Clang on Windows
+
+On Debian/Ubuntu, a practical starting point is:
+
+```bash
+sudo apt update
+sudo apt install -y \
+  build-essential pkg-config libssl-dev cmake curl git \
+  libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+  libsoup-3.0-dev libwebkit2gtk-4.1-dev libasound2-dev libclang-dev
+```
 
 If you hit native build errors, run:
 
@@ -62,7 +120,190 @@ If you hit native build errors, run:
 npm run doctor
 ```
 
-## Getting Started
+## Quick Start: Local
+
+Use this if you want CodexMonitor and Codex on the same machine.
+
+### If You Are Using a Release Build
+
+1. Download CodexMonitor from the GitHub releases page.
+2. Install and open the app.
+3. Make sure `codex` works in your shell on that machine.
+4. In CodexMonitor, add a workspace that points at one of your repos.
+5. Start a thread and send a message.
+
+### If You Are Building from Source
+
+Clone the repo:
+
+```bash
+git clone git@github.com:caseyjkey/CodexMonitor.git
+cd CodexMonitor
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the app:
+
+```bash
+npm run tauri:dev
+```
+
+Then:
+
+1. Open CodexMonitor.
+2. Add a workspace.
+3. Confirm the workspace can reach `codex`.
+4. Start a thread.
+
+## Quick Start: Server / Client
+
+Use this if you want one machine to do the Codex work and another machine to connect remotely.
+
+### Server Overview
+
+The **server** machine is the one that:
+
+- has access to the repos,
+- has `codex` installed,
+- runs the daemon,
+- stays online while clients are connected.
+
+### Client Overview
+
+The **client** machine is the one that:
+
+- runs the CodexMonitor app,
+- connects to the server over TCP,
+- does not need to host the repos locally if it is only acting as a remote client.
+
+### Recommended Network Path
+
+Tailscale is the recommended way to connect server and client. If both machines are already on the same tailnet, connectivity is usually the simple part. You still need:
+
+- a reachable server host and port,
+- a shared remote backend token,
+- the daemon running on the server.
+
+### Server Setup
+
+If you are using a release build on the server:
+
+1. Open CodexMonitor on the server.
+2. Go to `Settings > Server`.
+3. Set a `Remote backend token`.
+4. Start the daemon from `Mobile access daemon`.
+5. In `Tailscale helper`, detect or copy the suggested host, for example `server-name.tailnet.ts.net:4732`.
+
+If you are building from source on the server:
+
+Clone the repo:
+
+```bash
+git clone git@github.com:caseyjkey/CodexMonitor.git
+cd CodexMonitor
+```
+
+Install dependencies and build the daemon tools:
+
+```bash
+npm install
+cd src-tauri
+cargo build --bin codex_monitor_daemon --bin codex_monitor_daemonctl
+```
+
+Start the daemon:
+
+```bash
+./target/debug/codex_monitor_daemonctl start \
+  --listen 0.0.0.0:4732 \
+  --token 'replace-this-with-a-strong-token' \
+  --daemon-path ./target/debug/codex_monitor_daemon
+```
+
+Check daemon status:
+
+```bash
+./target/debug/codex_monitor_daemonctl status \
+  --listen 0.0.0.0:4732 \
+  --token 'replace-this-with-a-strong-token'
+```
+
+Notes:
+
+- `0.0.0.0:4732` is appropriate when clients need to connect from other machines.
+- If you omit `--daemon-path`, `codex_monitor_daemonctl` will try to resolve the daemon binary automatically.
+- `--data-dir <path>` can be used if you want the daemon to read a specific `settings.json` / `workspaces.json`.
+
+### Client Setup
+
+On the client machine:
+
+1. Install or run CodexMonitor.
+2. Open `Settings > Server`.
+3. Set `Backend mode` to `Remote (daemon)`.
+4. Enter the server host and port, for example `server-name.tailnet.ts.net:4732`.
+5. Enter the same remote backend token configured on the server.
+6. Click `Connect & test`.
+7. Confirm that the server workspaces load.
+
+### Success Criteria
+
+Your server/client setup is working when:
+
+- `Connect & test` succeeds on the client,
+- the client can see workspaces from the server,
+- you can start or resume threads from the client,
+- the server stays reachable while the client is connected.
+
+## Troubleshooting
+
+### The app starts but cannot run Codex
+
+- Make sure `codex` is installed and available in `PATH`.
+- If needed, configure a custom Codex binary path in app or workspace settings.
+
+### A workspace does not behave correctly
+
+- Make sure the repo path is valid on the machine actually running Codex.
+- In server/client mode, that means the path must exist on the **server**, not the client.
+
+### `Connect & test` fails
+
+- Make sure the daemon is running on the server.
+- Make sure the host and port are correct.
+- Make sure the token matches exactly.
+- Make sure the server and client can reach each other over your network or Tailscale.
+
+### The daemon is running but clients still cannot connect
+
+- Confirm the daemon is listening on a network-reachable address such as `0.0.0.0:4732`.
+- Confirm that the hostname you entered resolves to the server you expect.
+- Confirm nothing on the server is blocking the TCP port.
+
+### I only want to use the app, not contribute to it
+
+You can stop here. The rest of this README is for building, validating, releasing, or modifying CodexMonitor itself.
+
+## Development
+
+This section is for people building or contributing to CodexMonitor.
+
+## Development Prerequisites
+
+- Node.js + npm
+- Rust toolchain (stable)
+- CMake (required for native dependencies; dictation/Whisper uses it)
+- LLVM/Clang (required on Windows to build dictation dependencies via bindgen)
+- Codex CLI installed and available as `codex` in `PATH`
+- Git CLI
+- GitHub CLI (`gh`) for GitHub Issues/PR integrations (optional)
+
+## Getting Started for Development
 
 Install dependencies:
 
@@ -87,7 +328,6 @@ iOS support is currently in progress.
 ### iOS + Tailscale Setup (TCP)
 
 Use this when connecting the iOS app to a desktop-hosted daemon over your Tailscale tailnet.
-Canonical runbook: `docs/mobile-ios-tailscale-blueprint.md`.
 
 1. Install and sign in to Tailscale on both desktop and iPhone (same tailnet).
 2. On desktop CodexMonitor, open `Settings > Server`.
@@ -105,7 +345,7 @@ Notes:
 
 ### Headless Daemon Management (No Desktop UI)
 
-Use the standalone daemon control CLI when you want iOS remote mode without keeping the desktop app open.
+Use the standalone daemon control CLI when you want remote mode without keeping the desktop app open.
 
 Build binaries:
 
@@ -233,7 +473,7 @@ Artifacts will be in:
 
 - `src-tauri/target/release/bundle/nsis/` (installer exe)
 - `src-tauri/target/release/bundle/msi/` (msi)
- 
+
 Note: building from source on Windows requires LLVM/Clang (for `bindgen` / `libclang`) in addition to CMake.
 
 ## Type Checking
@@ -291,7 +531,7 @@ src-tauri/
 
 - Workspaces persist to `workspaces.json` under the app data directory.
 - App settings persist to `settings.json` under the app data directory (theme, backend mode/provider, remote endpoints/tokens, Codex path, default access mode, UI scale, follow-up message behavior).
-- Feature settings are supported in the UI and synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), and Background terminal (`features.unified_exec`). Experimental: Apps (`features.apps`). Steering capability still follows Codex `features.steer`, but follow-up default behavior is controlled in Settings → Composer.
+- Feature settings are supported in the UI and synced to `$CODEX_HOME/config.toml` (or `~/.codex/config.toml`) on load/save. Stable: Collaboration modes (`features.collaboration_modes`), personality (`personality`), and Background terminal (`features.unified_exec`). Experimental: Apps (`features.apps`). Steering capability still follows Codex `features.steer`, but follow-up default behavior is controlled in Settings -> Composer.
 - On launch and on window focus, the app reconnects and refreshes thread lists for each workspace.
 - Threads are restored by filtering `thread/list` results using the workspace `cwd`.
 - Selecting a thread always calls `thread/resume` to refresh messages from disk.
